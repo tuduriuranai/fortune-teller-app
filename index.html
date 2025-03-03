@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>占い結果画像作成</title>
 
-  <!-- シンプルなCSS -->
   <style>
     body {
       text-align: center;
@@ -13,8 +12,9 @@
     }
     canvas {
       border: 1px solid #ccc;
-      margin-top: 0px;
+      margin-top: 10px;
       max-width: 100%;
+      cursor: pointer; /* クリックでダウンロードできるように */
     }
     .input-box {
       margin: 20px 0;
@@ -25,7 +25,7 @@
     }
   </style>
 
-  <!-- QRコード生成ライブラリ (例: https://cdnjs.com/) -->
+  <!-- QRコード生成ライブラリ -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 </head>
 <body>
@@ -63,7 +63,6 @@
     <textarea id="colorInput" placeholder="カラーに関する説明を入力..."></textarea>
   </div>
 
-  <!-- QRコードを付けるかどうかのチェックボックス -->
   <div class="input-box">
     <input type="checkbox" id="qrCheckbox" />
     <label for="qrCheckbox">QRコードを付ける</label>
@@ -71,21 +70,10 @@
 
   <button onclick="generateImage()">作成</button>
   <br />
-  <canvas id="outputCanvas" width="600" height="900"></canvas>
+  <canvas id="outputCanvas" width="600" height="900" onclick="downloadImage()"></canvas>
   <br />
-  <button onclick="downloadImage()">ダウンロード</button>
 
   <script>
-    /**
-     * テキストを折り返して描画し、使用した行数を返す
-     * @param {CanvasRenderingContext2D} ctx - canvasのコンテキスト
-     * @param {string} text - 描画したいテキスト
-     * @param {number} x - テキスト描画のx座標
-     * @param {number} y - テキスト描画のy座標
-     * @param {number} maxWidth - 1行の最大幅
-     * @param {number} lineHeight - 行の高さ
-     * @returns {number} - 描画に使用した行数
-     */
     function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
       let words = text.split(/\s+/);
       let line = "";
@@ -104,7 +92,6 @@
       }
       lines.push(line);
 
-      // 実際に描画
       lines.forEach((l, index) => {
         ctx.fillText(l, x, y + index * lineHeight);
       });
@@ -121,61 +108,42 @@
       const trait = document.getElementById("traitInput").value;
       const advice = document.getElementById("adviceInput").value;
       const color = document.getElementById("colorInput").value;
-      const qrEnabled = document.getElementById("qrCheckbox").checked;  // true/false
+      const qrEnabled = document.getElementById("qrCheckbox").checked;
 
       const bgImage = new Image();
       bgImage.src = design;
       bgImage.onload = function () {
-        // 背景描画
         ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
 
-        // もし「和風」なら文字色を濃い茶色、それ以外は白
         const textColor = (design === "wafu.png") ? "#5A3E2B" : "#FFFFFF";
-
-        // タイトル
         ctx.font = "32px serif";
         ctx.fillStyle = textColor;
         ctx.fillText(category, 50, 80);
 
-        // 特徴
         ctx.font = "22px serif";
         let startY = 160;
         let lineHeight = 30;
 
         let lines1 = wrapText(ctx, "特徴:", 50, startY, 500, lineHeight);
         let lines2 = wrapText(ctx, trait, 50, startY + lineHeight, 500, lineHeight);
-        let totalLines = lines1 + lines2;
-        startY += totalLines * lineHeight + 40;
+        startY += (lines1 + lines2) * lineHeight + 40;
 
-        // アドバイス
-        lineHeight = 35;
         let lines3 = wrapText(ctx, "アドバイス:", 50, startY, 500, lineHeight);
         let lines4 = wrapText(ctx, advice, 50, startY + lineHeight, 500, lineHeight);
-        let totalLinesAdvice = lines3 + lines4;
-        startY += totalLinesAdvice * lineHeight + 40;
+        startY += (lines3 + lines4) * lineHeight + 40;
 
-        // カラー
         let lines5 = wrapText(ctx, "カラー:", 50, startY, 500, lineHeight);
         let lines6 = wrapText(ctx, color, 50, startY + lineHeight, 500, lineHeight);
 
-        // もしチェックボックスがONなら、QRコードを右下に配置
         if (qrEnabled) {
           addQRCode(ctx, canvas);
         }
       };
     }
 
-    /**
-     * QRコードを右下に描画する
-     * 任意のURLを指定(例：'https://example.com')
-     * @param {CanvasRenderingContext2D} ctx
-     * @param {HTMLCanvasElement} canvas
-     */
     function addQRCode(ctx, canvas) {
-      const url = "https://example.com"; // 必要に応じて動的に変更可
+      const url = "https://tuduriuranai.github.io/fortune-teller-app/";
 
-      // 1. 仮キャンバスにQRを描画
-      // 2. メインキャンバスに貼り付け
       QRCode.toDataURL(url, { width: 200 }, function (err, qrDataUrl) {
         if (err) {
           console.error(err);
@@ -184,7 +152,6 @@
         const qrImg = new Image();
         qrImg.src = qrDataUrl;
         qrImg.onload = function () {
-          // 右下に貼り付け (余白50px)
           const qrSize = 200;
           const x = canvas.width - qrSize - 50;
           const y = canvas.height - qrSize - 50;
@@ -197,8 +164,10 @@
       const canvas = document.getElementById("outputCanvas");
       const link = document.createElement("a");
       link.download = "fortune_result.png";
-      link.href = canvas.toDataURL("image/png");
+      link.href = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
     }
   </script>
 </body>
