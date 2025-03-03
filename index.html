@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>占い結果画像作成</title>
+
+  <!-- シンプルなCSS -->
+  <style>
+    body {
+      text-align: center;
+      font-family: Arial, sans-serif;
+    }
+    canvas {
+      border: 1px solid #ccc;
+      margin-top: 0px;
+      max-width: 100%;
+    }
+    .input-box {
+      margin: 20px 0;
+    }
+    textarea {
+      width: 80%;
+      height: 100px;
+    }
+  </style>
+
+  <!-- QRコード生成ライブラリ (例: https://cdnjs.com/) -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+</head>
+<body>
+  <h1>占い結果画像作成</h1>
+
+  <label for="designSelect">デザインを選択:</label>
+  <select id="designSelect">
+    <option value="simple.png">シンプル</option>
+    <option value="chic.png">シック</option>
+    <option value="wafu.png">和風</option>
+    <option value="cute.png">可愛い</option>
+  </select>
+
+  <div class="input-box">
+    <label for="categorySelect">占いの種類:</label>
+    <select id="categorySelect">
+      <option value="恋愛取扱説明書">恋愛取扱説明書</option>
+      <option value="仕事取扱説明書">仕事取扱説明書</option>
+      <option value="思考取扱説明書">思考取扱説明書</option>
+    </select>
+  </div>
+
+  <div class="input-box">
+    <label>特徴:</label>
+    <textarea id="traitInput" placeholder="特徴を入力..."></textarea>
+  </div>
+
+  <div class="input-box">
+    <label>アドバイス:</label>
+    <textarea id="adviceInput" placeholder="アドバイスを入力..."></textarea>
+  </div>
+
+  <div class="input-box">
+    <label>カラー:</label>
+    <textarea id="colorInput" placeholder="カラーに関する説明を入力..."></textarea>
+  </div>
+
+  <!-- QRコードを付けるかどうかのチェックボックス -->
+  <div class="input-box">
+    <input type="checkbox" id="qrCheckbox" />
+    <label for="qrCheckbox">QRコードを付ける</label>
+  </div>
+
+  <button onclick="generateImage()">作成</button>
+  <br />
+  <canvas id="outputCanvas" width="600" height="900"></canvas>
+  <br />
+  <button onclick="downloadImage()">ダウンロード</button>
+
+  <script>
+    /**
+     * テキストを折り返して描画し、使用した行数を返す
+     * @param {CanvasRenderingContext2D} ctx - canvasのコンテキスト
+     * @param {string} text - 描画したいテキスト
+     * @param {number} x - テキスト描画のx座標
+     * @param {number} y - テキスト描画のy座標
+     * @param {number} maxWidth - 1行の最大幅
+     * @param {number} lineHeight - 行の高さ
+     * @returns {number} - 描画に使用した行数
+     */
+    function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+      let words = text.split(/\s+/);
+      let line = "";
+      let lines = [];
+
+      for (let word of words) {
+        let testLine = line + word + " ";
+        let metrics = ctx.measureText(testLine);
+        let testWidth = metrics.width;
+        if (testWidth > maxWidth && line !== "") {
+          lines.push(line);
+          line = word + " ";
+        } else {
+          line = testLine;
+        }
+      }
+      lines.push(line);
+
+      // 実際に描画
+      lines.forEach((l, index) => {
+        ctx.fillText(l, x, y + index * lineHeight);
+      });
+
+      return lines.length;
+    }
+
+    function generateImage() {
+      const canvas = document.getElementById("outputCanvas");
+      const ctx = canvas.getContext("2d");
+
+      const design = document.getElementById("designSelect").value;
+      const category = document.getElementById("categorySelect").value;
+      const trait = document.getElementById("traitInput").value;
+      const advice = document.getElementById("adviceInput").value;
+      const color = document.getElementById("colorInput").value;
+      const qrEnabled = document.getElementById("qrCheckbox").checked;  // true/false
+
+      const bgImage = new Image();
+      bgImage.src = design;
+      bgImage.onload = function () {
+        // 背景描画
+        ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+
+        // もし「和風」なら文字色を濃い茶色、それ以外は白
+        const textColor = (design === "wafu.png") ? "#5A3E2B" : "#FFFFFF";
+
+        // タイトル
+        ctx.font = "32px serif";
+        ctx.fillStyle = textColor;
+        ctx.fillText(category, 50, 80);
+
+        // 特徴
+        ctx.font = "22px serif";
+        let startY = 160;
+        let lineHeight = 30;
+
+        let lines1 = wrapText(ctx, "特徴:", 50, startY, 500, lineHeight);
+        let lines2 = wrapText(ctx, trait, 50, startY + lineHeight, 500, lineHeight);
+        let totalLines = lines1 + lines2;
+        startY += totalLines * lineHeight + 40;
+
+        // アドバイス
+        lineHeight = 35;
+        let lines3 = wrapText(ctx, "アドバイス:", 50, startY, 500, lineHeight);
+        let lines4 = wrapText(ctx, advice, 50, startY + lineHeight, 500, lineHeight);
+        let totalLinesAdvice = lines3 + lines4;
+        startY += totalLinesAdvice * lineHeight + 40;
+
+        // カラー
+        let lines5 = wrapText(ctx, "カラー:", 50, startY, 500, lineHeight);
+        let lines6 = wrapText(ctx, color, 50, startY + lineHeight, 500, lineHeight);
+
+        // もしチェックボックスがONなら、QRコードを右下に配置
+        if (qrEnabled) {
+          addQRCode(ctx, canvas);
+        }
+      };
+    }
+
+    /**
+     * QRコードを右下に描画する
+     * 任意のURLを指定(例：'https://example.com')
+     * @param {CanvasRenderingContext2D} ctx
+     * @param {HTMLCanvasElement} canvas
+     */
+    function addQRCode(ctx, canvas) {
+      const url = "https://example.com"; // 必要に応じて動的に変更可
+
+      // 1. 仮キャンバスにQRを描画
+      // 2. メインキャンバスに貼り付け
+      QRCode.toDataURL(url, { width: 200 }, function (err, qrDataUrl) {
+        if (err) {
+          console.error(err);
+          return;
+        }
+        const qrImg = new Image();
+        qrImg.src = qrDataUrl;
+        qrImg.onload = function () {
+          // 右下に貼り付け (余白50px)
+          const qrSize = 200;
+          const x = canvas.width - qrSize - 50;
+          const y = canvas.height - qrSize - 50;
+          ctx.drawImage(qrImg, x, y, qrSize, qrSize);
+        };
+      });
+    }
+
+    function downloadImage() {
+      const canvas = document.getElementById("outputCanvas");
+      const link = document.createElement("a");
+      link.download = "fortune_result.png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    }
+  </script>
+</body>
+</html>
